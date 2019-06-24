@@ -128,6 +128,9 @@ typedef struct {
     int		network_card;			/* net interface num */
     char	network_host[128];		/* host network intf */
 
+    char	network_srv_addr[512];	/* network server address */
+    int		network_srv_port;		/* network server port */
+
     int		bugger_enabled;			/* enable ISAbugger */
 
     int		isamem_type[ISAMEM_MAX];	/* enable ISA mem cards */

@@ -672,6 +672,7 @@ save_sound(const config_t *cfg, const char *cat)
 static void
 load_network(config_t *cfg, const char *cat)
 {
+    int k;
     char *p;
 
     p = config_get_string(cat, "net_type", "none");
@@ -680,37 +681,46 @@ load_network(config_t *cfg, const char *cat)
     memset(cfg->network_host, '\0', sizeof(cfg->network_host));
     p = config_get_string(cat, "net_host_device", NULL);
     if (p == NULL) {
-	p = config_get_string(cat, "net_pcap_device", NULL);
-	if (p != NULL)
-		config_delete_var(cat, "net_pcap_device");
+	    p = config_get_string(cat, "net_pcap_device", NULL);
+	    if (p != NULL)
+		    config_delete_var(cat, "net_pcap_device");
     }
-    if (p != NULL) {
-	if ((network_card_to_id(p) == -1) || (network_host_ndev == 1)) {
-		if ((network_host_ndev == 1) && strcmp(cfg->network_host, "none")) {
-			ui_msgbox(MBX_ERROR, (wchar_t *)IDS_ERR_PCAP_NO);
-		} else if (network_card_to_id(p) == -1) {
-			ui_msgbox(MBX_ERROR, (wchar_t *)IDS_ERR_PCAP_DEV);
-		}
 
-		strcpy(cfg->network_host, "none");
-	} else {
-		strcpy(cfg->network_host, p);
-	}
+    memset(cfg->network_srv_addr, '\0', sizeof(cfg->network_srv_addr));
+    p = config_get_string(cat, "net_srv_addr", NULL);
+    if (p != NULL) {
+        strcpy(cfg->network_srv_addr, p);
+    }
+    k = config_get_int(cat, "net_srv_port", 10123);
+    cfg->network_srv_port = k;
+
+    if (p != NULL) {
+	    if ((network_card_to_id(p) == -1) || (network_host_ndev == 1)) {
+		    if ((network_host_ndev == 1) && strcmp(cfg->network_host, "none")) {
+			    ui_msgbox(MBX_ERROR, (wchar_t *)IDS_ERR_PCAP_NO);
+		    } else if (network_card_to_id(p) == -1) {
+			    ui_msgbox(MBX_ERROR, (wchar_t *)IDS_ERR_PCAP_DEV);
+		    }
+
+		    strcpy(cfg->network_host, "none");
+	    } else {
+		    strcpy(cfg->network_host, p);
+	    }
     } else
-	strcpy(cfg->network_host, "none");
+	    strcpy(cfg->network_host, "none");
 
     if (machine_get_flags_fixed() & MACHINE_NETWORK) {
-	config_delete_var(cat, "net_card");
-	cfg->network_card = NET_CARD_INTERNAL;
+	    config_delete_var(cat, "net_card");
+	    cfg->network_card = NET_CARD_INTERNAL;
     } else {
-	p = config_get_string(cat, "net_card", NULL);
-	if (p == NULL) {
-		if (machine_get_flags() & MACHINE_NETWORK)
-			p = "internal";
-	  	else
-			p = "none";
-	}
-	cfg->network_card = network_card_get_from_internal_name(p);
+	    p = config_get_string(cat, "net_card", NULL);
+	    if (p == NULL) {
+		    if (machine_get_flags() & MACHINE_NETWORK)
+			    p = "internal";
+	  	    else
+			    p = "none";
+	    }
+	    cfg->network_card = network_card_get_from_internal_name(p);
     }
 }
 
@@ -720,25 +730,39 @@ static void
 save_network(const config_t *cfg, const char *cat)
 {
     if (cfg->network_type == NET_NONE)
-	config_delete_var(cat, "net_type");
+	    config_delete_var(cat, "net_type");
     else
-	config_set_string(cat, "net_type",
-			  network_get_internal_name(cfg->network_type));
+	    config_set_string(cat, "net_type",
+			      network_get_internal_name(cfg->network_type));
 
     if (cfg->network_host[0] != '\0') {
-	if (! strcmp(cfg->network_host, "none"))
-		config_delete_var(cat, "net_host_device");
-	else
-		config_set_string(cat, "net_host_device", cfg->network_host);
+	    if (! strcmp(cfg->network_host, "none"))
+		    config_delete_var(cat, "net_host_device");
+	    else
+		    config_set_string(cat, "net_host_device", cfg->network_host);
     } else {
-	config_delete_var(cat, "net_host_device");
+	    config_delete_var(cat, "net_host_device");
+    }
+
+    if (cfg->network_srv_addr[0] != '\0') {
+        config_set_string(cat, "net_srv_addr", cfg->network_srv_addr);
+    }
+    else {
+        config_delete_var(cat, "net_srv_addr");
+    }
+
+    if (cfg->network_srv_port != 0) {
+        config_set_int(cat, "net_srv_port", cfg->network_srv_port);
+    }
+    else {
+        config_delete_var(cat, "net_srv_port");
     }
 
     if (cfg->network_card == 0)
-	config_delete_var(cat, "net_card");
+	    config_delete_var(cat, "net_card");
     else
-	config_set_string(cat, "net_card",
-			  network_card_get_internal_name(cfg->network_card));
+	    config_set_string(cat, "net_card",
+			      network_card_get_internal_name(cfg->network_card));
 
     delete_section_if_empty(cat);
 }
@@ -1783,6 +1807,9 @@ config_init(config_t *cfg)
     cfg->network_type = NET_NONE;		/* network provider type */
     cfg->network_card = NET_CARD_NONE;		/* network interface num */
     strcpy(cfg->network_host, "");		/* host network intf */
+
+    strcpy(cfg->network_srv_addr, "127.0.0.1");	/* network server address */
+    cfg->network_srv_port = 10123; 		/* network server port */
 
     cfg->bugger_enabled = 0;			/* enable ISAbugger */
 

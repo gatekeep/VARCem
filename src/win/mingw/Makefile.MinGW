@@ -857,11 +857,16 @@ PLATOBJ		:= win.o \
 		    win_cdrom.o win_keyboard.o win_serial.o win_midi.o \
 		    win_mouse.o win_joystick.o
 
+ZLIBOBJ		:= adler32.obj \
+			compress.obj crc32.obj deflate.obj gzclose.obj gzlib.obj \
+			gzread.obj gzwrite.obj infback.obj inffast.obj inflate.obj \
+			inftrees.obj trees.obj uncompr.obj zutil.obj
+
 
 OBJ		:= $(MAINOBJ) $(CPUOBJ) $(MCHOBJ) $(SYSOBJ) $(CHIPOBJ) \
 		   $(DEVOBJ) $(FDDOBJ) $(CDROMOBJ) $(ZIPOBJ) $(HDDOBJ) \
 		   $(USBOBJ) $(NETOBJ) $(SCSIOBJ) $(SNDOBJ) $(VIDOBJ) \
-		   $(UIOBJ) $(PLATOBJ) $(MISCOBJ) $(DEVBROBJ)
+		   $(UIOBJ) $(PLATOBJ) $(ZLIBOBJ) $(MISCOBJ) $(DEVBROBJ)
 ifdef EXOBJ
 OBJ		+= $(EXOBJ)
 endif

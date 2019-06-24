@@ -118,6 +118,9 @@
 #define IDT_1766		1766	/* ISAMEM #4: */
 #define IDT_1767		1767	/* ISARTC: */
 
+#define IDT_1768        1768
+#define IDT_1769        1769
+
 #define IDT_TITLE		1790	/* "VARCem for Plaform" */
 #define IDT_VERSION		1791	/* "version.." */
 #define IDT_LOCALIZE		1795	/* "Localization done by.." */
@@ -177,6 +180,8 @@
 #define IDC_CONFIGURE_PCAP	1093
 #define IDC_COMBO_NET_CARD	1094
 #define IDC_CONFIGURE_NET_CARD	1095
+#define IDC_NET_SRV_ADDR    1096
+#define IDC_NET_SRV_PORT    1097
 
 #define IDC_CHECK_GAME		1110	/* ports config */
 #define IDC_CHECK_PARALLEL1	1111

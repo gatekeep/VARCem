@@ -223,6 +223,9 @@
 #define  STR_3425	"Network type:"
 #define  STR_3426	"PCap device:"
 #define  STR_3427	"Network adapter:"
+#define  STR_3428   "Tunnel Server:"
+#define  STR_3429   "Port:"
+
 
 /* UI dialog: Settings (Ports, 3450.) */
 #define  STR_3450	"Game port"

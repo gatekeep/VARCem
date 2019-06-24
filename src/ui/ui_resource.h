@@ -412,6 +412,8 @@
 #define  IDS_3425	3425		/* "Network type:" */
 #define  IDS_3426	3426		/* "PCap device:" */
 #define  IDS_3427	3427		/* "Network adapter:" */
+#define  IDS_3428   3428        /* "Tunnel Server:" */
+#define  IDS_3429   3429        /* "Tunnel Server Port:" */
 
 /* UI dialog: Settings (Ports, 3450.) */
 #define  IDS_3450	3450		/* "Game port" */

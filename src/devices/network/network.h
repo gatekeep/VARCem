@@ -52,7 +52,8 @@
 enum {
     NET_NONE = 0,
     NET_SLIRP,
-    NET_PCAP
+    NET_PCAP,
+    NET_UDP
 #ifdef USE_VNS
     ,NET_VNS
 #endif
@@ -97,6 +98,7 @@ extern const network_t	network_pcap;
 #ifdef USE_VNS
 extern const network_t	network_vns;
 #endif
+extern const network_t  network_udp;
 
 
 /* Function prototypes. */

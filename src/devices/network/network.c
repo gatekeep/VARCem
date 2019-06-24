@@ -96,6 +96,7 @@ static const struct {
 
     { "slirp",		&network_slirp	},
     { "pcap",		&network_pcap	},
+    { "udp",        &network_udp    },
 #ifdef USE_VNS
     { "vns",		&network_vns	},
 #endif

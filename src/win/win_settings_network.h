@@ -53,24 +53,30 @@ static int	net_ignore_message = 0;
 static void
 network_recalc_combos(HWND hdlg)
 {
-    HWND h, h1, h2;
+    HWND h, h1, h2, h3, h4;
 
     net_ignore_message = 1;
 
     h = GetDlgItem(hdlg, IDC_COMBO_PCAP);
     h1 = GetDlgItem(hdlg, IDC_COMBO_NET_CARD);
     h2 = GetDlgItem(hdlg, IDC_CONFIGURE_NET_CARD);
+    h3 = GetDlgItem(hdlg, IDC_NET_SRV_ADDR);
+    h4 = GetDlgItem(hdlg, IDC_NET_SRV_PORT);
 
     switch(temp_cfg.network_type) {
 	case NET_SLIRP:
 		EnableWindow(h, FALSE);
 		EnableWindow(h1, TRUE);
 		EnableWindow(h2, TRUE);
-		break;
+        EnableWindow(h3, FALSE);
+        EnableWindow(h4, FALSE);
+        break;
 
 	case NET_PCAP:
 		EnableWindow(h, TRUE);
-		if (network_card_to_id(temp_cfg.network_host) > 0) {
+        EnableWindow(h3, FALSE);
+        EnableWindow(h4, FALSE);
+        if (network_card_to_id(temp_cfg.network_host) > 0) {
 			EnableWindow(h1, TRUE);
 			EnableWindow(h2, TRUE);
 		} else {
@@ -79,11 +85,21 @@ network_recalc_combos(HWND hdlg)
 		}
 		break;
 
+    case NET_UDP:
+        EnableWindow(h, FALSE);
+        EnableWindow(h1, TRUE);
+        EnableWindow(h2, TRUE);
+        EnableWindow(h3, TRUE);
+        EnableWindow(h4, TRUE);
+        break;
+
 	default:
 		EnableWindow(h, FALSE);
 		EnableWindow(h1, TRUE);
 		EnableWindow(h2, TRUE);
-		break;
+        EnableWindow(h3, FALSE);
+        EnableWindow(h4, FALSE);
+        break;
     }
 
     net_ignore_message = 0;
@@ -158,6 +174,17 @@ network_proc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 		}
 		SendMessage(h, CB_SETCURSEL,
 			    network_card_to_id(temp_cfg.network_host), 0);
+
+        /* Populate the "Tunnel Server" box. */
+        h = GetDlgItem(hdlg, IDC_NET_SRV_ADDR);
+        mbstowcs(temp, temp_cfg.network_srv_addr, sizeof(temp));
+        SendMessage(h, WM_SETTEXT, 0, (LPARAM)temp);
+
+        /* Populate the "Tunnel Server Port" box. */
+        h = GetDlgItem(hdlg, IDC_NET_SRV_PORT);
+        sprintf(tempA, "%d", temp_cfg.network_srv_port);
+        mbstowcs(temp, tempA, sizeof(temp));
+        SendMessage(h, WM_SETTEXT, 0, (LPARAM)temp);
 
 		/* Populate the "network cards" box. */
 		h = GetDlgItem(hdlg, IDC_COMBO_NET_CARD);

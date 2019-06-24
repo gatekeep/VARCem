@@ -35,3 +35,6 @@ src/*.o
 src/*.exe
 src/*.res
 src/*.map
+contrib/*/[Bb]in
+contrib/*/[Oo]bj
+contrib/*/.vs/
