@@ -125,10 +125,13 @@ namespace UDPServer.Service
                         // is this our mac?
                         if (kvp.Key.ToString() == eth.DestinationHwAddress.ToString())
                             continue;
-#if TRACE
-                        Trace.WriteLine("session [" + kvp.Key.ToString() + "] destHW [" + eth.DestinationHwAddress.ToString() + "]");
-                        Trace.WriteLine("packet dump " + eth.ToString());
-#endif
+
+                        if (Program.foreground)
+                        {
+                            Console.WriteLine("session [" + kvp.Key.ToString() + "] destHW [" + eth.DestinationHwAddress.ToString() + "]");
+                            Console.WriteLine("packet dump " + eth.ToString());
+                        }
+
                         SendPacket(kvp.Key, kvp.Value, eth.Bytes);
                     }
                 }
@@ -211,30 +214,33 @@ namespace UDPServer.Service
             header.WriteTo(buffer, 0);
 
             Array.Copy(compressedData, 0, buffer, header.Size, compressedData.Length);
-#if TRACE
-            if (buf != null)
+
+            if (Program.foreground && Program.debug)
             {
-                Trace.WriteLine("[SNIP .. Packet Tx to Client]");
-                Util.TraceHex("hdr", buffer, header.Size);
                 if (buf != null)
                 {
-                    Util.TraceHex("packet", buf, buf.Length);
-                    Trace.WriteLine("packet length " + buf.Length);
+                    Console.WriteLine("[SNIP .. Packet Tx to Client]");
+                    Util.TraceHex("hdr", buffer, header.Size);
+                    if (buf != null)
+                    {
+                        Util.TraceHex("packet", buf, buf.Length);
+                        Console.WriteLine("packet length " + buf.Length);
+                    }
+                    Console.WriteLine("hdr->checksum = " + header.CheckSum.ToString("X"));
+                    Console.WriteLine("hdr->length = " + header.Length.ToString());
+                    Console.WriteLine("hdr->macAddr = " +
+                        header.MacAddr[0].ToString("X") + ":" +
+                        header.MacAddr[1].ToString("X") + ":" +
+                        header.MacAddr[2].ToString("X") + ":" +
+                        header.MacAddr[3].ToString("X") + ":" +
+                        header.MacAddr[4].ToString("X") + ":" +
+                        header.MacAddr[5].ToString("X"));
+                    Console.WriteLine("hdr->dataLength = " + header.DataLength);
+                    Console.WriteLine("hdr->compressLength = " + header.CompressedLength);
+                    Console.WriteLine("[SNIP .. Packet Tx to Client]");
                 }
-                Trace.WriteLine("hdr->checksum = " + header.CheckSum.ToString("X"));
-                Trace.WriteLine("hdr->length = " + header.Length.ToString());
-                Trace.WriteLine("hdr->macAddr = " +
-                    header.MacAddr[0].ToString("X") + ":" +
-                    header.MacAddr[1].ToString("X") + ":" +
-                    header.MacAddr[2].ToString("X") + ":" +
-                    header.MacAddr[3].ToString("X") + ":" +
-                    header.MacAddr[4].ToString("X") + ":" +
-                    header.MacAddr[5].ToString("X"));
-                Trace.WriteLine("hdr->dataLength = " + header.DataLength);
-                Trace.WriteLine("hdr->compressLength = " + header.CompressedLength);
-                Trace.WriteLine("[SNIP .. Packet Tx to Client]");
             }
-#endif
+
             socket.SendTo(buffer, endPoint);
         }
 
@@ -269,51 +275,53 @@ namespace UDPServer.Service
                             buf = null;
                         }
 
-#if TRACE
                         if (buf != null)
                         {
                             Util.TraceHex("buf", buf, buf.Length);
 
                             // read PDU data from stream
                             ProtocolDataUnit pdu = ProtocolDataUnit.ReadFrom(buf);
-                            if (pdu != null)
+                            if (pdu != null && Program.foreground && Program.debug)
                             {
-                                Trace.WriteLine("[SNIP .. Packet Rx from Client]");
+                                Console.WriteLine("[SNIP .. Packet Rx from Client]");
                                 Util.TraceHex("hdr", pdu.HeaderData, pdu.HeaderData.Length);
                                 if (pdu.ContentData != null)
                                 {
                                     Util.TraceHex("packet", pdu.ContentData, pdu.ContentData.Length);
-                                    Trace.WriteLine("packet length " + pdu.ContentData.Length);
+                                    Console.WriteLine("packet length " + pdu.ContentData.Length);
                                 }
-                                Trace.WriteLine("hdr->checksum = " + pdu.Header.CheckSum.ToString("X"));
-                                Trace.WriteLine("hdr->length = " + pdu.Header.Length.ToString());
-                                Trace.WriteLine("hdr->macAddr = " +
+                                Console.WriteLine("hdr->checksum = " + pdu.Header.CheckSum.ToString("X"));
+                                Console.WriteLine("hdr->length = " + pdu.Header.Length.ToString());
+                                Console.WriteLine("hdr->macAddr = " +
                                     pdu.Header.MacAddr[0].ToString("X") + ":" +
                                     pdu.Header.MacAddr[1].ToString("X") + ":" +
                                     pdu.Header.MacAddr[2].ToString("X") + ":" +
                                     pdu.Header.MacAddr[3].ToString("X") + ":" +
                                     pdu.Header.MacAddr[4].ToString("X") + ":" +
                                     pdu.Header.MacAddr[5].ToString("X"));
-                                Trace.WriteLine("hdr->dataLength = " + pdu.Header.DataLength);
-                                Trace.WriteLine("hdr->compressLength = " + pdu.Header.CompressedLength);
-                                Trace.WriteLine("[SNIP .. Packet Rx from Client]");
+                                Console.WriteLine("hdr->dataLength = " + pdu.Header.DataLength);
+                                Console.WriteLine("hdr->compressLength = " + pdu.Header.CompressedLength);
+                                Console.WriteLine("[SNIP .. Packet Rx from Client]");
                             }
-#endif
+
                             // did we receive a pdu?
                             if (pdu != null)
                             {
                                 // are we trying to shut down the session?
                                 if ((pdu.Header.CheckSum == 0xFA) && (pdu.Header.DataLength == 0))
                                 {
-#if TRACE
-                                    Trace.WriteLine("disconnecting session macAddr = " +
-                                        pdu.Header.MacAddr[0].ToString("X") + ":" +
-                                        pdu.Header.MacAddr[1].ToString("X") + ":" +
-                                        pdu.Header.MacAddr[2].ToString("X") + ":" +
-                                        pdu.Header.MacAddr[3].ToString("X") + ":" +
-                                        pdu.Header.MacAddr[4].ToString("X") + ":" +
-                                        pdu.Header.MacAddr[5].ToString("X"));
-#endif
+                                    if (Program.foreground)
+                                    {
+
+                                        Console.WriteLine("disconnecting session macAddr = " +
+                                            pdu.Header.MacAddr[0].ToString("X") + ":" +
+                                            pdu.Header.MacAddr[1].ToString("X") + ":" +
+                                            pdu.Header.MacAddr[2].ToString("X") + ":" +
+                                            pdu.Header.MacAddr[3].ToString("X") + ":" +
+                                            pdu.Header.MacAddr[4].ToString("X") + ":" +
+                                            pdu.Header.MacAddr[5].ToString("X"));
+                                    }
+
                                     PhysicalAddress addr = new PhysicalAddress(pdu.Header.MacAddr);
                                     if (this.endPoints.ContainsKey(addr))
                                         this.endPoints.Remove(addr);
@@ -329,15 +337,18 @@ namespace UDPServer.Service
                                     header.CompressedLength = 0;
                                     header.Length = (ushort)header.Size;
                                     header.MacAddr = pdu.Header.MacAddr;
-#if TRACE
-                                    Trace.WriteLine("new session macAddr = " +
-                                        header.MacAddr[0].ToString("X") + ":" +
-                                        header.MacAddr[1].ToString("X") + ":" +
-                                        header.MacAddr[2].ToString("X") + ":" +
-                                        header.MacAddr[3].ToString("X") + ":" +
-                                        header.MacAddr[4].ToString("X") + ":" +
-                                        header.MacAddr[5].ToString("X"));
-#endif
+
+                                    if (Program.foreground)
+                                    {
+                                        Console.WriteLine("new session macAddr = " +
+                                            header.MacAddr[0].ToString("X") + ":" +
+                                            header.MacAddr[1].ToString("X") + ":" +
+                                            header.MacAddr[2].ToString("X") + ":" +
+                                            header.MacAddr[3].ToString("X") + ":" +
+                                            header.MacAddr[4].ToString("X") + ":" +
+                                            header.MacAddr[5].ToString("X"));
+                                    }
+
                                     // build final payload
                                     byte[] buffer = new byte[Util.RoundUp(header.Size, 4)];
                                     header.WriteTo(buffer, 0);
@@ -347,7 +358,7 @@ namespace UDPServer.Service
                                     if (!this.endPoints.ContainsKey(addr))
                                         this.endPoints.Add(addr, (IPEndPoint)endPoint);
                                     else
-                                        Trace.WriteLine("macAddr already exists?");
+                                        Console.WriteLine("macAddr already exists?");
                                     socket.SendTo(buffer, endPoint);
                                 }
                                 else
@@ -381,7 +392,7 @@ namespace UDPServer.Service
             }
             catch (ThreadAbortException)
             {
-                Trace.WriteLine("comm manager thread commanded to abort!");
+                Console.WriteLine("comm manager thread commanded to abort!");
                 runThread = false;
             }
             catch (Exception e)

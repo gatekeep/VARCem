@@ -26,6 +26,8 @@ namespace UDPServer
          */
         public static int interfaceToUse = 0;
         public static bool privateNetwork = false;
+        public static bool foreground = false;
+        public static bool debug = false;
 
         /**
          * Methods
@@ -120,7 +122,7 @@ namespace UDPServer
         public static void Main(string[] args)
         {
             List<string> extraArgs = new List<string>();
-            bool showHelp = false, runForeground = false, displayInterfaces = false, privateNetwork = false;
+            bool showHelp = false, displayInterfaces = false, privateNetwork = false;
 
             // command line parameters
             OptionSet options = new OptionSet()
@@ -133,7 +135,8 @@ namespace UDPServer
                 { "install-service", "install the server as a service on Windows computers", v => InstallService() },
                 { "uninstall-service", "uninstall the server as a service on Windows computers", v => UninstallService() },
 #endif
-                { "f|foreground", "force the server to run in the foreground mode", v => runForeground = v != null },
+                { "f|foreground", "force the server to run in the foreground mode", v => foreground = v != null },
+                { "d|debug", "force the server to run in the debug mode", v => debug = v != null },
             };
 
             // attempt to parse the commandline
@@ -153,14 +156,14 @@ namespace UDPServer
                 Usage(options);
 
             Program.privateNetwork = privateNetwork;
-            if (runForeground)
+            if (foreground)
             {
                 Console.WriteLine(AssemblyVersion._VERSION_STRING + " (Built: " + AssemblyVersion._BUILD_DATE + ")");
                 Console.WriteLine(AssemblyVersion._COPYRIGHT + "., All Rights Reserved.");
                 Console.WriteLine();
             }
 
-            if (!runForeground && !displayInterfaces)
+            if (!foreground && !displayInterfaces)
             {
                 Console.Error.WriteLine("Do not start the NetworkProxy as a normal program!");
                 ServiceBase[] ServicesToRun;
@@ -172,7 +175,7 @@ namespace UDPServer
                 ServiceBase.Run(ServicesToRun);
             }
 
-            if (runForeground)
+            if (foreground)
                 RunForeground(args);
 
             if (displayInterfaces)

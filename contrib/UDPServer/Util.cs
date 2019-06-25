@@ -55,19 +55,19 @@ namespace UDPServer
 
             Exception inner = throwable.InnerException;
 
-            Trace.WriteLine("caught an unrecoverable exception! " + msg);
-            Trace.WriteLine("---- TRACE SNIP ----");
-            Trace.WriteLine(throwable.Message + (inner != null ? " (Inner: " + inner.Message + ")" : ""));
-            Trace.WriteLine(throwable.GetType().ToString());
+            Console.WriteLine("caught an unrecoverable exception! " + msg);
+            Console.WriteLine("---- TRACE SNIP ----");
+            Console.WriteLine(throwable.Message + (inner != null ? " (Inner: " + inner.Message + ")" : ""));
+            Console.WriteLine(throwable.GetType().ToString());
 
-            Trace.WriteLine("<" + mb.ReflectedType.Name + "::" + mb.Name + "(" + funcParams + ")>");
-            Trace.WriteLine(throwable.Source);
+            Console.WriteLine("<" + mb.ReflectedType.Name + "::" + mb.Name + "(" + funcParams + ")>");
+            Console.WriteLine(throwable.Source);
             foreach (string str in throwable.StackTrace.Split(new string[] { Environment.NewLine }, StringSplitOptions.None))
-                Trace.WriteLine(str);
+                Console.WriteLine(str);
             if (inner != null)
                 foreach (string str in throwable.StackTrace.Split(new string[] { Environment.NewLine }, StringSplitOptions.None))
-                    Trace.WriteLine("inner trace: " + str);
-            Trace.WriteLine("---- TRACE SNIP ----");
+                    Console.WriteLine("inner trace: " + str);
+            Console.WriteLine("---- TRACE SNIP ----");
 
             if (reThrow)
                 throw throwable;
@@ -95,7 +95,7 @@ namespace UDPServer
                 if (bCount == 16)
                 {
                     traceMsg += "]";
-                    Trace.WriteLine(traceMsg);
+                    Console.WriteLine(traceMsg);
 
                     bCount = 0;
                     j += 16;
@@ -119,7 +119,7 @@ namespace UDPServer
             if (bCount != 0)
             {
                 traceMsg += "]";
-                Trace.WriteLine(traceMsg);
+                Console.WriteLine(traceMsg);
             }
         }
 
