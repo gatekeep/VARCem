@@ -31,13 +31,16 @@ namespace UDPServer.Service
         /**
          * Fields
          */
-        public const int port = 10234;
+        public const int port = 10123;
         public const int readTimeoutMilliseconds = 250;
 
         private bool runThread = false;
         private Thread commMgrThread;
 
-        private UdpClient udpClient;
+        private Socket socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+
+        private EndPoint epFrom = new IPEndPoint(IPAddress.Any, 0);
+        private AsyncCallback recv = null;
 
         private static CommManager instance;
         private Dictionary<PhysicalAddress, IPEndPoint> endPoints = new Dictionary<PhysicalAddress, IPEndPoint>();
@@ -63,9 +66,6 @@ namespace UDPServer.Service
             commMgrThread.Name = "CommManagerThread";
 
             Trace.WriteLine("created comm manager thread [" + commMgrThread.Name + "]");
-
-            IPAddress allAddr = IPAddress.Parse("0.0.0.0");
-            udpClient = new UdpClient(port);
         }
 
         /// <summary>
@@ -235,7 +235,7 @@ namespace UDPServer.Service
                 Trace.WriteLine("[SNIP .. Packet Tx to Client]");
             }
 #endif
-            udpClient.Send(buffer, buffer.Length, endPoint);
+            socket.SendTo(buffer, endPoint);
         }
 
         /// <summary>
@@ -243,8 +243,13 @@ namespace UDPServer.Service
         /// </summary>
         private void CommManagerThread()
         {
-            IPEndPoint groupEP = new IPEndPoint(IPAddress.Any, port);
-            byte[] buf;
+            byte[] rxBuf = new byte[65535];
+            byte[] buf = null;
+
+            EndPoint endPoint = new IPEndPoint(IPAddress.Any, 0);
+
+            socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
+            socket.Bind(new IPEndPoint(IPAddress.Any, port));
 
             try
             {
@@ -253,102 +258,116 @@ namespace UDPServer.Service
                 {
                     try
                     {
-                        buf = udpClient.Receive(ref groupEP);
-
-                        // read PDU data from stream
-                        ProtocolDataUnit pdu = ProtocolDataUnit.ReadFrom(buf);
-#if TRACE
-                        if (pdu != null)
+                        int len = socket.ReceiveFrom(rxBuf, ref endPoint);
+                        if (len > 0)
                         {
-                            Trace.WriteLine("[SNIP .. Packet Rx from Client]");
-                            Util.TraceHex("hdr", pdu.HeaderData, pdu.HeaderData.Length);
-                            if (pdu.ContentData != null)
-                            {
-                                Util.TraceHex("packet", pdu.ContentData, pdu.ContentData.Length);
-                                Trace.WriteLine("packet length " + pdu.ContentData.Length);
-                            }
-                            Trace.WriteLine("hdr->checksum = " + pdu.Header.CheckSum.ToString("X"));
-                            Trace.WriteLine("hdr->length = " + pdu.Header.Length.ToString());
-                            Trace.WriteLine("hdr->macAddr = " +
-                                pdu.Header.MacAddr[0].ToString("X") + ":" +
-                                pdu.Header.MacAddr[1].ToString("X") + ":" +
-                                pdu.Header.MacAddr[2].ToString("X") + ":" +
-                                pdu.Header.MacAddr[3].ToString("X") + ":" +
-                                pdu.Header.MacAddr[4].ToString("X") + ":" +
-                                pdu.Header.MacAddr[5].ToString("X"));
-                            Trace.WriteLine("hdr->dataLength = " + pdu.Header.DataLength);
-                            Trace.WriteLine("hdr->compressLength = " + pdu.Header.CompressedLength);
-                            Trace.WriteLine("[SNIP .. Packet Rx from Client]");
+                            buf = new byte[len];
+                            Buffer.BlockCopy(rxBuf, 0, buf, 0, buf.Length);
                         }
-#endif
-                        // did we receive a pdu?
-                        if (pdu != null)
+                        else
                         {
-                            // are we trying to shut down the session?
-                            if ((pdu.Header.CheckSum == 0xFA) && (pdu.Header.DataLength == 0))
-                            {
+                            buf = null;
+                        }
+
 #if TRACE
-                                Trace.WriteLine("disconnecting session macAddr = " +
+                        if (buf != null)
+                        {
+                            Util.TraceHex("buf", buf, buf.Length);
+
+                            // read PDU data from stream
+                            ProtocolDataUnit pdu = ProtocolDataUnit.ReadFrom(buf);
+                            if (pdu != null)
+                            {
+                                Trace.WriteLine("[SNIP .. Packet Rx from Client]");
+                                Util.TraceHex("hdr", pdu.HeaderData, pdu.HeaderData.Length);
+                                if (pdu.ContentData != null)
+                                {
+                                    Util.TraceHex("packet", pdu.ContentData, pdu.ContentData.Length);
+                                    Trace.WriteLine("packet length " + pdu.ContentData.Length);
+                                }
+                                Trace.WriteLine("hdr->checksum = " + pdu.Header.CheckSum.ToString("X"));
+                                Trace.WriteLine("hdr->length = " + pdu.Header.Length.ToString());
+                                Trace.WriteLine("hdr->macAddr = " +
                                     pdu.Header.MacAddr[0].ToString("X") + ":" +
                                     pdu.Header.MacAddr[1].ToString("X") + ":" +
                                     pdu.Header.MacAddr[2].ToString("X") + ":" +
                                     pdu.Header.MacAddr[3].ToString("X") + ":" +
                                     pdu.Header.MacAddr[4].ToString("X") + ":" +
                                     pdu.Header.MacAddr[5].ToString("X"));
-#endif
-                                PhysicalAddress addr = new PhysicalAddress(pdu.Header.MacAddr);
-                                if (this.endPoints.ContainsKey(addr))
-                                    this.endPoints.Remove(addr);
-                                return;
+                                Trace.WriteLine("hdr->dataLength = " + pdu.Header.DataLength);
+                                Trace.WriteLine("hdr->compressLength = " + pdu.Header.CompressedLength);
+                                Trace.WriteLine("[SNIP .. Packet Rx from Client]");
                             }
-
-                            // are we trying to register a client?
-                            if ((pdu.Header.CheckSum == 0xFF) && (pdu.Header.DataLength == 0))
-                            {
-                                HandshakeHeader header = new HandshakeHeader();
-                                header.CheckSum = 0xFF;
-                                header.DataLength = 0;
-                                header.CompressedLength = 0;
-                                header.Length = (ushort)header.Size;
-                                header.MacAddr = pdu.Header.MacAddr;
-#if TRACE
-                                Trace.WriteLine("new session macAddr = " +
-                                    header.MacAddr[0].ToString("X") + ":" +
-                                    header.MacAddr[1].ToString("X") + ":" +
-                                    header.MacAddr[2].ToString("X") + ":" +
-                                    header.MacAddr[3].ToString("X") + ":" +
-                                    header.MacAddr[4].ToString("X") + ":" +
-                                    header.MacAddr[5].ToString("X"));
 #endif
-                                // build final payload
-                                byte[] buffer = new byte[Util.RoundUp(header.Size, 4)];
-                                header.WriteTo(buffer, 0);
-
-                                PhysicalAddress addr = new PhysicalAddress(header.MacAddr);
-
-                                if (!this.endPoints.ContainsKey(addr))
-                                    this.endPoints.Add(addr, groupEP);
-                                else
-                                    Trace.WriteLine("macAddr already exists?");
-                                udpClient.Send(buffer, buffer.Length, groupEP);
-                            }
-                            else
+                            // did we receive a pdu?
+                            if (pdu != null)
                             {
-                                if (!Program.privateNetwork)
+                                // are we trying to shut down the session?
+                                if ((pdu.Header.CheckSum == 0xFA) && (pdu.Header.DataLength == 0))
                                 {
-                                    // otherwise handle actual packet data
-                                    Packet packet = Packet.ParsePacket(LinkLayers.Ethernet, pdu.ContentData);
-                                    capDevice.SendPacket(packet);
+#if TRACE
+                                    Trace.WriteLine("disconnecting session macAddr = " +
+                                        pdu.Header.MacAddr[0].ToString("X") + ":" +
+                                        pdu.Header.MacAddr[1].ToString("X") + ":" +
+                                        pdu.Header.MacAddr[2].ToString("X") + ":" +
+                                        pdu.Header.MacAddr[3].ToString("X") + ":" +
+                                        pdu.Header.MacAddr[4].ToString("X") + ":" +
+                                        pdu.Header.MacAddr[5].ToString("X"));
+#endif
+                                    PhysicalAddress addr = new PhysicalAddress(pdu.Header.MacAddr);
+                                    if (this.endPoints.ContainsKey(addr))
+                                        this.endPoints.Remove(addr);
+                                    return;
+                                }
+
+                                // are we trying to register a client?
+                                if ((pdu.Header.CheckSum == 0xFF) && (pdu.Header.DataLength == 0))
+                                {
+                                    HandshakeHeader header = new HandshakeHeader();
+                                    header.CheckSum = 0xFF;
+                                    header.DataLength = 0;
+                                    header.CompressedLength = 0;
+                                    header.Length = (ushort)header.Size;
+                                    header.MacAddr = pdu.Header.MacAddr;
+#if TRACE
+                                    Trace.WriteLine("new session macAddr = " +
+                                        header.MacAddr[0].ToString("X") + ":" +
+                                        header.MacAddr[1].ToString("X") + ":" +
+                                        header.MacAddr[2].ToString("X") + ":" +
+                                        header.MacAddr[3].ToString("X") + ":" +
+                                        header.MacAddr[4].ToString("X") + ":" +
+                                        header.MacAddr[5].ToString("X"));
+#endif
+                                    // build final payload
+                                    byte[] buffer = new byte[Util.RoundUp(header.Size, 4)];
+                                    header.WriteTo(buffer, 0);
+
+                                    PhysicalAddress addr = new PhysicalAddress(header.MacAddr);
+
+                                    if (!this.endPoints.ContainsKey(addr))
+                                        this.endPoints.Add(addr, (IPEndPoint)endPoint);
+                                    else
+                                        Trace.WriteLine("macAddr already exists?");
+                                    socket.SendTo(buffer, endPoint);
                                 }
                                 else
                                 {
-                                    foreach (KeyValuePair<PhysicalAddress, IPEndPoint> kvp in endPoints)
+                                    if (!Program.privateNetwork)
                                     {
-                                        // is this our mac?
-                                        if (kvp.Key.GetAddressBytes() == pdu.Header.MacAddr)
-                                            continue;
+                                        // otherwise handle actual packet data
+                                        Packet packet = Packet.ParsePacket(LinkLayers.Ethernet, pdu.ContentData);
+                                        capDevice.SendPacket(packet);
+                                    }
+                                    else
+                                    {
+                                        foreach (KeyValuePair<PhysicalAddress, IPEndPoint> kvp in endPoints)
+                                        {
+                                            // is this our mac?
+                                            if (kvp.Key.GetAddressBytes() == pdu.Header.MacAddr)
+                                                continue;
 
-                                        SendPacket(kvp.Key, kvp.Value, pdu.ContentData);
+                                            SendPacket(kvp.Key, kvp.Value, pdu.ContentData);
+                                        }
                                     }
                                 }
                             }

@@ -177,6 +177,8 @@ poll_thread(void *arg)
 {
 	uint8_t *mac = (uint8_t *)arg;
 	uint8_t *data = NULL;
+    uint32_t mac_cmp32[2];
+    uint16_t mac_cmp16[2];
 
 	struct in_addr src_addr;
 	uint32_t src_port;
@@ -189,7 +191,9 @@ poll_thread(void *arg)
 	/* Create a waitable event. */
 	evt = thread_create_event();
 
-	/* As long as the channel is open.. */
+    data = (uint8_t*)malloc(RX_BUF_SIZE);
+
+    /* As long as the channel is open.. */
 	while (pkt_poller_running) {
 		/* Request ownership of the device. */
 		network_wait(1);
@@ -198,69 +202,76 @@ poll_thread(void *arg)
 		network_poll();
 
         /* Wait for the next packet to arrive. */
-		data = (uint8_t *)malloc(RX_BUF_SIZE);
 		memset(data, 0, RX_BUF_SIZE);
 
-		if (!is_server_connected) {
-			if (udp_connect_to_server(config.network_srv_addr, config.network_srv_port, mac)) {
-				is_server_connected = TRUE;
-			}
-		}
-
 		int len = udp_socket_read(data, RX_BUF_SIZE, &src_addr, &src_port);
-		if (len > 0) {
-			/* create and copy header */
-			struct handshake_hdr *hdr = (struct handshake_hdr*)malloc(sizeof(struct handshake_hdr));
-			memcpy(hdr, data, sizeof(struct handshake_hdr));
+        if (len > 0) {
+            /* create and copy header */
+            struct handshake_hdr* hdr = (struct handshake_hdr*)malloc(sizeof(struct handshake_hdr));
+            memcpy(hdr, data, sizeof(struct handshake_hdr));
 
-			if (hdr->magic == PKT_MAGIC) {
-				if (len < hdr->length)
-					return;
+            if (hdr->magic == PKT_MAGIC) {
+                if (len < hdr->length)
+                    continue;
 
-				switch (hdr->checksum) {
-					case CS_CMD_REG:
-					{
-						INFO("UDP: connected to server");
-						is_server_connected = TRUE;
-					}
-					break;
+                switch (hdr->checksum) {
+                case CS_CMD_REG:
+                {
+                    INFO("UDP: connected to server\n");
+                    is_server_connected = TRUE;
+                }
+                break;
 
-					default:
-					{
-						/* only process requests if the is_server_connected flag is TRUE */
-						if (is_server_connected) {
-							if ((hdr->data_len > 0) && (hdr->compress_len > 0)) {
-								uint16_t data_len = hdr->data_len;
-								uint16_t compressed_size = hdr->compress_len;
+                default:
+                {
+                    /* only process requests if the is_server_connected flag is TRUE */
+                    if (is_server_connected) {
+                        if ((hdr->data_len > 0) && (hdr->compress_len > 0)) {
+                            uint16_t data_len = hdr->data_len;
+                            uint16_t compressed_size = hdr->compress_len;
 
-								/* copy compressed data */
-								uint8_t *compressed_data = (uint8_t *)malloc(compressed_size);
-								memcpy(compressed_data, data + sizeof(struct handshake_hdr), compressed_size);
+                            /* copy compressed data */
+                            uint8_t* compressed_data = (uint8_t*)malloc(compressed_size);
+                            memcpy(compressed_data, data + sizeof(struct handshake_hdr), compressed_size);
 
-								/* decompress data */
-								uint8_t *rawData = (uint8_t *)malloc(data_len);
-								unsigned long decomp_len = data_len;
-								uncompress(rawData, &decomp_len, compressed_data, compressed_size);
-								free(compressed_data);
+                            /* decompress data */
+                            uint8_t* rawData = (uint8_t*)malloc(data_len);
+                            unsigned long decomp_len = data_len;
+                            uncompress(rawData, &decomp_len, compressed_data, compressed_size);
+                            free(compressed_data);
 
-								/* check data checksum */
-								uint8_t checksum = packet_crc(&rawData[0], data_len);
-								if (hdr->checksum != checksum)
-									return;
+                            /* check data checksum */
+                            uint8_t checksum = packet_crc(&rawData[0], data_len);
+                            if (hdr->checksum != checksum)
+                                continue;
 
+                            /* Received MAC. */
+                            mac_cmp32[0] = *(uint32_t*)(data + 6);
+                            mac_cmp16[0] = *(uint16_t*)(data + 10);
+
+                            /* Local MAC. */
+                            mac_cmp32[1] = *(uint32_t*)mac;
+                            mac_cmp16[1] = *(uint16_t*)(mac + 4);
+                            if ((mac_cmp32[0] != mac_cmp32[1]) ||
+                                (mac_cmp16[0] != mac_cmp16[1])) {
                                 network_rx(rawData, data_len);
-								free(rawData);
-							}
-						}
-					}
-					break;
-				}
-			}
+                            }
 
-			free(hdr);
-		}
+                            free(rawData);
+                        }
+                    }
+                }
+                break;
+                }
+            }
 
-		free(data);
+            free(hdr);
+        }
+        else {
+            if (!is_server_connected) {
+                udp_connect_to_server(config.network_srv_addr, config.network_srv_port, netcard_mac);
+            }
+        }
 
 		/* If we did not get anything, wait a while. */
 		if (len == 0)
@@ -270,8 +281,10 @@ poll_thread(void *arg)
 		network_wait(0);
 	}
 
+    free(data);
+
 	if (is_server_connected) {
-		udp_disconnect_from_server(0, mac);
+		udp_disconnect_from_server(0, netcard_mac);
 	}
 
 	/* No longer needed. */
@@ -300,6 +313,7 @@ do_init(netdev_t* list)
     strcpy(list->description, fn);
 
 	udp_socket_init(0);
+    udp_socket_open();
 
 	return(1);
 }
