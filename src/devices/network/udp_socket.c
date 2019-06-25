@@ -56,21 +56,6 @@ unsigned int	udp_socket_port;
 int				udp_socket_fd;
 
 
-static void
-udp_socket_log(int lvl, const char *fmt, ...)
-{
-#ifdef ENABLE_NETWORK_LOG
-	va_list ap;
-
-	if (network_do_log >= lvl) {
-		va_start(ap, fmt);
-		pclog_ex(fmt, ap);
-		va_end(ap);
-	}
-#endif
-}
-
-
 void
 udp_socket_init(uint32_t port)
 {
@@ -81,7 +66,7 @@ udp_socket_init(uint32_t port)
 	WSADATA data;
 	int wsaRet = WSAStartup(MAKEWORD(2, 2), &data);
 	if (wsaRet != 0)
-		udp_socket_log(1, "UDPSOCKET: error from WSAStartup");
+        ERRLOG("UDPSOCKET: error from WSAStartup");
 #endif
 }
 
@@ -103,7 +88,7 @@ udp_socket_lookup(const char* hostname)
 		return addr;
 	}
 
-	udp_socket_log(1, "UDPSOCKET: cannot find address for host %s", hostname);
+    ERRLOG("UDPSOCKET: cannot find address for host %s", hostname);
 
 	addr.s_addr = INADDR_NONE;
 	return addr;
@@ -120,7 +105,7 @@ udp_socket_lookup(const char* hostname)
 		return addr;
 	}
 
-	udp_socket_log(1, "UDPSOCKET: cannot find address for host %s", hostname);
+    ERRLOG("UDPSOCKET: cannot find address for host %s", hostname);
 
 	addr.s_addr = INADDR_NONE;
 	return addr;
@@ -134,9 +119,9 @@ udp_socket_open()
 	udp_socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
 	if (udp_socket_fd < 0) {
 #if defined(_WIN32) || defined(_WIN64)
-		udp_socket_log(1, "UDPSOCKET: cannot create the UDP socket, err: %lu", GetLastError());
+        ERRLOG("UDPSOCKET: cannot create the UDP socket, err: %lu", GetLastError());
 #else
-		udp_socket_log(1, "UDPSOCKET: cannot create the UDP socket, err: %d", errno);
+        ERRLOG("UDPSOCKET: cannot create the UDP socket, err: %d", errno);
 #endif
 		return FALSE;
 	}
@@ -150,18 +135,18 @@ udp_socket_open()
 	int reuse = 1;
 	if (setsockopt(udp_socket_fd, SOL_SOCKET, SO_REUSEADDR, (char *)&reuse, sizeof(reuse)) == -1) {
 #if defined(_WIN32) || defined(_WIN64)
-		udp_socket_log(1, "UDPSOCKET: cannot set the UDP socket option, err: %lu", GetLastError());
+        ERRLOG("UDPSOCKET: cannot set the UDP socket option, err: %lu", GetLastError());
 #else
-		udp_socket_log(1, "UDPSOCKET: cannot set the UDP socket option, err: %d", errno);
+        ERRLOG("UDPSOCKET: cannot set the UDP socket option, err: %d", errno);
 #endif
 		return FALSE;
 	}
 
 	if (bind(udp_socket_fd, (struct sockaddr*)&addr, sizeof(struct sockaddr_in)) == -1) {
 #if defined(_WIN32) || defined(_WIN64)
-		udp_socket_log(1, "UDPSOCKET: cannot bind the UDP address, err: %lu", GetLastError());
+        ERRLOG("UDPSOCKET: cannot bind the UDP address, err: %lu", GetLastError());
 #else
-		udp_socket_log(1, "UDPSOCKET: cannot bind the UDP address, err: %d", errno);
+        ERRLOG("UDPSOCKET: cannot bind the UDP address, err: %d", errno);
 #endif
 		return FALSE;
 	}
@@ -195,9 +180,9 @@ udp_socket_read(uint8_t* buffer, unsigned int length, struct in_addr* address, u
 	int ret = select(udp_socket_fd + 1, &readFds, NULL, NULL, &tv);
 	if (ret < 0) {
 #if defined(_WIN32) || defined(_WIN64)
-		udp_socket_log(1, "UDPSOCKET: error returned from UDP select, err: %lu", GetLastError());
+        ERRLOG("UDPSOCKET: error returned from UDP select, err: %lu", GetLastError());
 #else
-		udp_socket_log(1, "UDPSOCKET: error returned from UDP select, err: %d", errno);
+        ERRLOG("UDPSOCKET: error returned from UDP select, err: %d", errno);
 #endif
 		return -1;
 	}
@@ -219,9 +204,9 @@ udp_socket_read(uint8_t* buffer, unsigned int length, struct in_addr* address, u
 #endif
 	if (len <= 0) {
 #if defined(_WIN32) || defined(_WIN64)
-		udp_socket_log(1, "UDPSOCKET: error returned from recvfrom, err: %lu", GetLastError());
+        ERRLOG("UDPSOCKET: error returned from recvfrom, err: %lu", GetLastError());
 #else
-		udp_socket_log(1, "UDPSOCKET: error returned from recvfrom, err: %d", errno);
+        ERRLOG("UDPSOCKET: error returned from recvfrom, err: %d", errno);
 #endif
 		return -1;
 	}
@@ -255,9 +240,9 @@ udp_socket_write(const uint8_t* buffer, unsigned int length, const struct in_add
 #endif
 	if (ret < 0) {
 #if defined(_WIN32) || defined(_WIN64)
-		udp_socket_log(1, "UDPSOCKET: error returned from sendto, err: %lu", GetLastError());
+        ERRLOG("UDPSOCKET: error returned from sendto, err: %lu", GetLastError());
 #else
-		udp_socket_log(1, "UDPSOCKET: error returned from sendto, err: %d", errno);
+        ERRLOG("UDPSOCKET: error returned from sendto, err: %d", errno);
 #endif
 		return FALSE;
 	}
